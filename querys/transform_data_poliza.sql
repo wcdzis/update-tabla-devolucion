@@ -86,44 +86,40 @@ WHERE tdp.id_poliza = p.id_poliza
 
 
 -- validacion de body poliza
-SELECT
-    id_poliza,
-    CONCAT('{', STRING_AGG(CONCAT('"', periodo, '":"', valor, '"'), ', ' ORDER BY CAST(periodo AS INTEGER)), '}') AS tabla_devolucion
-FROM
-    tabla_devolucion_poliza
-GROUP BY
-    id_poliza;
+SELECT id_poliza,
+       CONCAT('{', STRING_AGG(CONCAT('"', periodo, '":"', valor, '"'), ', ' ORDER BY CAST(periodo AS INTEGER)),
+              '}') AS tabla_devolucion
+FROM tabla_devolucion_poliza
+GROUP BY id_poliza;
 
 -- actualizacion masiva poliza
 UPDATE poliza p
 SET tabla_devolucion = subquery.tabla_devolucion
-FROM (
-         SELECT
-             id_poliza,
-             CONCAT('{', STRING_AGG(CONCAT('"', periodo, '":"', valor, '"'), ', ' ORDER BY CAST(periodo AS INTEGER)), '}') AS tabla_devolucion
-         FROM
-             tabla_devolucion_poliza
-         GROUP BY
-             id_poliza
-     ) AS subquery
+FROM (SELECT id_poliza,
+             CONCAT('{', STRING_AGG(CONCAT('"', periodo, '":"', valor, '"'), ', ' ORDER BY CAST(periodo AS INTEGER)),
+                    '}') AS tabla_devolucion
+      FROM tabla_devolucion_poliza
+      GROUP BY id_poliza) AS subquery
 WHERE p.id_poliza = subquery.id_poliza;
 -- 356 afectadas
 
 
-
-
 -- validaciones varias
 
-select * from valores_calculo_tabla_devolucion
-where periodo = 12 and porcentaje = 150
+select *
+from valores_calculo_tabla_devolucion
+where periodo = 12
+  and porcentaje = 150
 
 
-select *, pd.periodo_pago from poliza p
+select *, pd.periodo_pago
+from poliza p
          inner join poliza_detalle pd on p.id_poliza = pd.id_poliza
-         where p.id_poliza = 12810
+where p.id_poliza = 12810
 
-select * from
- 12 - 150
+select *
+from
+    12 - 150
 
 
 SELECT tdp.*, vctd.valor

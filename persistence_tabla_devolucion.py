@@ -5,8 +5,9 @@ conn = database_conn()
 cursor = conn.cursor()
 data = get_tabla_devolucion_by_periodo_and_porcentaje().items()
 
+
 # Tabla pivote
-def insert_valores_calculo_tabla_devolucion_temp():
+def insert_valores_calculo_tabla_devolucion():
     try:
         cursor.execute("TRUNCATE TABLE valores_calculo_tabla_devolucion;")
 
@@ -70,43 +71,22 @@ def insert_valores_calculo_tabla_devolucion_temp():
 #         cursor.close()
 #         conn.close()
 
+
 def update_tabla_devolucion_precalculo():
     try:
-        # Cargar los datos en una tabla temporal
-        cursor.execute("""
-        CREATE TEMP TABLE IF NOT EXISTS tabla_devolucion_temp (
-            valor DECIMAL(18,2),
-            año INT,
-            periodo INT,
-            porcentaje INT
-        )
-        """)
-        print("✅ Tabla temporal creada o verificada.")
-
-        # Preparar los datos
-        update_data = [
-            (valor, año, periodo, porcentaje)
-            for periodo, porcentajes in data
-            for porcentaje, valores in porcentajes.items()
-            for año, valor in enumerate(valores, start=1)
-        ]
-        
-        # Insertar los datos en la tabla temporal
-        cursor.executemany("INSERT INTO tabla_devolucion_temp (valor, año, periodo, porcentaje) VALUES (%s, %s, %s, %s)", update_data)
-        print("✅ Datos cargados en tabla temporal.")
-
         # Realizar el update masivo
+        # insert_valores_calculo_tabla_devolucion()
         query = f"""
         UPDATE tabla_devolucion_precalculo tdp
-        SET valor = temp.valor
-        FROM tabla_devolucion_temp temp
+        SET valor = vctd.valor
+        FROM valores_calculo_tabla_devolucion vctd
         INNER JOIN precalculo p ON tdp.id_precalculo = p.id_precalculo
         WHERE p.channel = 'VIDA_CASH_PLUS'
           AND p.tipo_cambio = {tipo_cambio}
           AND p.id_cobertura = 1
-          AND tdp.periodo = temp.año
-          AND p.periodo_cobertura = temp.periodo
-          AND p.porcentaje = temp.porcentaje;
+          AND tdp.periodo = vctd.año
+          AND p.periodo_cobertura = vctd.periodo
+          AND p.porcentaje = vctd.porcentaje;
         """
         cursor.execute(query)
         print("✅ Datos actualizados en tabla_devolucion_precalculo.")
@@ -119,9 +99,48 @@ def update_tabla_devolucion_precalculo():
         cursor.close()
         conn.close()
 
+
+def update_tabla_devolucion_poliza():
+    try:
+        query = f"""
+        UPDATE tabla_devolucion_poliza tdp
+        SET valor = vctd.valor
+        FROM valores_calculo_tabla_devolucion vctd,
+        poliza p,
+        poliza_detalle pd
+        WHERE tdp.id_poliza = p.id_poliza
+        AND tdp.id_poliza = pd.id_poliza
+        AND p.channel = 'VIDA_CASH_PLUS'
+        AND p.estado = 3
+        AND tdp.periodo::TEXT = vctd.año::TEXT
+        AND pd.periodo_pago::TEXT = vctd.periodo::TEXT
+        AND pd.porcentaje_devolucion = vctd.porcentaje;
+        """
+        cursor.execute(query)
+        print("✅ Datos actualizados en tabla_devolucion_poliza.")
+    except Exception as e:
+        print(f"❗ Error: {e}")
+        conn.rollback()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def update_masivo_tablas_devolucion_precalculo_poliza():
+    try:
+        cursor.execute("CALL actualizar_tablas_devolucion();")
+        conn.commit()
+        print("✅ Procedimiento actualizar_tablas_devolucion ejecutado correctamente.")
+    except Exception as e:
+        print(f"❗ Error: {e}")
+        conn.rollback()
+    finally:
+        cursor.close()
+        conn.close()
+
+
 # Ejecutar la función
 update_tabla_devolucion_precalculo()
-
 
 
 upd = update_tabla_devolucion_precalculo()
